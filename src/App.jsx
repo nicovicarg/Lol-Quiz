@@ -43,7 +43,8 @@ function evaluateAnswer(targetName, inputName) {
     }
   }
 
-  const accuracy = Math.min(1, correctMatches / cleanTarget.length)
+  // CORRECCIÓN: Se divide entre maxLength para penalizar letras extra o mal puestas
+  const accuracy = correctMatches / maxLength
 
   return { accuracy, details }
 }
@@ -223,7 +224,6 @@ function App() {
     <div style={{ textAlign: 'center' }}>
       <h2>Modo Estudio ({estudioIndex + 1} / {estudioChampions.length})</h2>
       
-      {/* Botón directo para saltar al Quiz en cualquier momento */}
       <div style={{ marginBottom: '15px' }}>
         <button 
           onClick={handleStartQuiz} 
