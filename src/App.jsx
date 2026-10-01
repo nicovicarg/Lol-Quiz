@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import './App.css'
 import champions from './assets/champions_min.json'
 
-// --- FUNCIONES DE LIMPIEZA Y SIMILITUD ---
+// --- FUNCIONES DE LIMPIEZA Y EVALUACIÓN DE RESPUESTA ---
 
 function cleanText(str) {
   return str
@@ -12,67 +12,46 @@ function cleanText(str) {
     .replace(/[^a-z0-9]/g, "")
 }
 
-function levenshteinDistance(a, b) {
-  const matrix = []
-  for (let i = 0; i <= b.length; i++) matrix[i] = [i]
-  for (let j = 0; j <= a.length; j++) matrix[0][j] = j
-
-  for (let i = 1; i <= b.length; i++) {
-    for (let j = 1; j <= a.length; j++) {
-      if (b.charAt(i - 1) === a.charAt(j - 1)) {
-        matrix[i][j] = matrix[i - 1][j - 1]
-      } else {
-        matrix[i][j] = Math.min(
-          matrix[i - 1][j - 1] + 1,
-          matrix[i][j - 1] + 1,
-          matrix[i - 1][j] + 1
-        )
-      }
-    }
-  }
-  return matrix[b.length][a.length]
-}
-
-function calculateSimilarity(input, target) {
-  const cleanInput = cleanText(input)
-  const cleanTarget = cleanText(target)
-
-  if (!cleanInput) return 0
-  if (cleanInput === cleanTarget) return 1
-
-  const distance = levenshteinDistance(cleanInput, cleanTarget)
-  const maxLength = Math.max(cleanInput.length, cleanTarget.length)
-
-  const similarity = (maxLength - distance) / maxLength
-  return Math.max(0, similarity)
-}
-
-// --- COMPONENTE PARA DIBUJAR COMPARACIÓN DE LETRAS ---
-function LetterComparison({ targetName, inputName }) {
+// Evalúa la respuesta letra por letra según la posición esperada
+function evaluateAnswer(targetName, inputName) {
   const cleanTarget = cleanText(targetName)
   const cleanInput = cleanText(inputName)
 
+  if (!cleanInput) {
+    return {
+      accuracy: 0,
+      details: Array.from(cleanTarget).map(() => ({ char: '-', status: 'missing' }))
+    }
+  }
+
   const maxLength = Math.max(cleanTarget.length, cleanInput.length)
-  const result = []
+  const details = []
+  let correctMatches = 0
 
   for (let i = 0; i < maxLength; i++) {
     const targetChar = cleanTarget[i] || ''
     const inputChar = cleanInput[i] || ''
 
     if (i < cleanInput.length) {
-      if (inputChar === targetChar) {
-        // Letra correcta
-        result.push({ char: inputChar, status: 'correct' })
+      if (inputChar === targetChar && targetChar !== '') {
+        correctMatches++
+        details.push({ char: inputChar, status: 'correct' })
       } else {
-        // Letra equivocada
-        result.push({ char: inputChar, status: 'wrong' })
+        details.push({ char: inputChar, status: 'wrong' })
       }
     } else {
-      // Letra faltante
-      result.push({ char: '-', status: 'missing' })
+      details.push({ char: '-', status: 'missing' })
     }
   }
 
+  // El porcentaje se calcula dividiendo los aciertos exactos entre la longitud real del nombre
+  const accuracy = Math.min(1, correctMatches / cleanTarget.length)
+
+  return { accuracy, details }
+}
+
+// --- COMPONENTE PARA DIBUJAR COMPARACIÓN DE LETRAS ---
+function LetterComparison({ targetName, details }) {
   return (
     <div style={{ marginTop: '15px', marginBottom: '15px' }}>
       <p style={{ margin: '5px 0', fontSize: '0.9rem', color: '#aaa' }}>
@@ -80,11 +59,11 @@ function LetterComparison({ targetName, inputName }) {
       </p>
       <p style={{ margin: '5px 0', fontSize: '0.9rem', color: '#aaa' }}>Tu respuesta:</p>
       <div style={{ display: 'flex', justifyContent: 'center', gap: '4px', fontSize: '1.5rem', fontWeight: 'bold' }}>
-        {result.map((item, index) => {
+        {details.map((item, index) => {
           let color = '#fff'
           if (item.status === 'correct') color = '#4CAF50' // Verde
           if (item.status === 'wrong') color = '#F44336'   // Rojo
-          if (item.status === 'missing') color = '#888'    // Gris para faltantes
+          if (item.status === 'missing') color = '#888'    // Gris
 
           return (
             <span 
@@ -119,9 +98,8 @@ function App() {
   const [userAnswer, setUserAnswer] = useState('')
   const [score, setScore] = useState(0)
   
-  // Estado para la retroalimentación intermedia
   const [showFeedback, setShowFeedback] = useState(false)
-  const [lastSubmittedAnswer, setLastSubmittedAnswer] = useState('')
+  const [evaluation, setEvaluation] = useState({ accuracy: 0, details: [] })
 
   const maxPointsPerChampion = 100 / champions.length
 
@@ -143,25 +121,24 @@ function App() {
     setScore(0)
     setUserAnswer('')
     setShowFeedback(false)
-    setLastSubmittedAnswer('')
     setFase('quiz')
   }
 
-  // Al hacer submit en el form
   const handleSubmitAnswer = (e) => {
     e.preventDefault()
     if (showFeedback) return
 
     const currentChampion = quizChampions[quizIndex]
-    const accuracy = calculateSimilarity(userAnswer, currentChampion.name)
-    const pointsEarned = accuracy * maxPointsPerChampion
+    
+    // Evaluamos exactitud basándonos en posición
+    const result = evaluateAnswer(currentChampion.name, userAnswer)
+    const pointsEarned = result.accuracy * maxPointsPerChampion
     
     setScore((prev) => prev + pointsEarned)
-    setLastSubmittedAnswer(userAnswer)
+    setEvaluation(result)
     setShowFeedback(true)
   }
 
-  // Al presionar "Siguiente Campeón"
   const handleNextQuestion = () => {
     setUserAnswer('')
     setShowFeedback(false)
@@ -192,8 +169,6 @@ function App() {
         </div>
       )
     }
-
-    const accuracyPercent = (calculateSimilarity(lastSubmittedAnswer, currentQuiz.name) * 100).toFixed(0)
 
     return (
       <div style={{ textAlign: 'center', maxWidth: '500px', margin: '0 auto' }}>
@@ -226,10 +201,10 @@ function App() {
           <div style={{ marginTop: '15px', padding: '15px', backgroundColor: '#222', borderRadius: '8px' }}>
             <LetterComparison 
               targetName={currentQuiz.name} 
-              inputName={lastSubmittedAnswer} 
+              details={evaluation.details} 
             />
             <p style={{ fontSize: '0.9rem', color: '#ddd' }}>
-              Acierto en esta respuesta: <strong>{accuracyPercent}%</strong>
+              Acierto en esta respuesta: <strong>{(evaluation.accuracy * 100).toFixed(0)}%</strong>
             </p>
             <button 
               onClick={handleNextQuestion} 
