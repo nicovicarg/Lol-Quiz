@@ -12,7 +12,6 @@ function cleanText(str) {
     .replace(/[^a-z0-9]/g, "")
 }
 
-// Evalúa la respuesta letra por letra según la posición esperada
 function evaluateAnswer(targetName, inputName) {
   const cleanTarget = cleanText(targetName)
   const cleanInput = cleanText(inputName)
@@ -44,7 +43,6 @@ function evaluateAnswer(targetName, inputName) {
     }
   }
 
-  // El porcentaje se calcula dividiendo los aciertos exactos entre la longitud real del nombre
   const accuracy = Math.min(1, correctMatches / cleanTarget.length)
 
   return { accuracy, details }
@@ -61,9 +59,9 @@ function LetterComparison({ targetName, details }) {
       <div style={{ display: 'flex', justifyContent: 'center', gap: '4px', fontSize: '1.5rem', fontWeight: 'bold' }}>
         {details.map((item, index) => {
           let color = '#fff'
-          if (item.status === 'correct') color = '#4CAF50' // Verde
-          if (item.status === 'wrong') color = '#F44336'   // Rojo
-          if (item.status === 'missing') color = '#888'    // Gris
+          if (item.status === 'correct') color = '#4CAF50'
+          if (item.status === 'wrong') color = '#F44336'
+          if (item.status === 'missing') color = '#888'
 
           return (
             <span 
@@ -129,8 +127,6 @@ function App() {
     if (showFeedback) return
 
     const currentChampion = quizChampions[quizIndex]
-    
-    // Evaluamos exactitud basándonos en posición
     const result = evaluateAnswer(currentChampion.name, userAnswer)
     const pointsEarned = result.accuracy * maxPointsPerChampion
     
@@ -227,6 +223,16 @@ function App() {
     <div style={{ textAlign: 'center' }}>
       <h2>Modo Estudio ({estudioIndex + 1} / {estudioChampions.length})</h2>
       
+      {/* Botón directo para saltar al Quiz en cualquier momento */}
+      <div style={{ marginBottom: '15px' }}>
+        <button 
+          onClick={handleStartQuiz} 
+          style={{ padding: '8px 16px', backgroundColor: '#ff9800', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+        >
+          ⚡ Saltar al Quiz
+        </button>
+      </div>
+
       {currentEstudio && (
         <div style={{ cursor: 'pointer' }} onClick={handleNextEstudio}>
           <h3>{currentEstudio.name}</h3>
