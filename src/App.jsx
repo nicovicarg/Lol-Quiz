@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 import champions from './assets/champions_min.json'
+import { Analytics } from "@vercel/analytics/next"
 
 // --- FUNCIONES DE LIMPIEZA Y EVALUACIÓN DE RESPUESTA ---
 
